@@ -1,0 +1,19 @@
+{
+  "name": "node-CES",
+  "version": "0.0.0",
+  "description": "a CES module for node",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yzziizzy/node-CES.git"
+  },
+  "author": "izzy",
+  "license": "AGPLv3",
+  "bugs": {
+    "url": "https://github.com/yzziizzy/node-CES/issues"
+  },
+  "homepage": "https://github.com/yzziizzy/node-CES"
+}
