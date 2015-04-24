@@ -7,7 +7,7 @@
 
 
 
-
+var Promise = require('bluebird');
 var async = require('async');
 var dbutils = require('./dbutils');
 
@@ -108,7 +108,7 @@ module.exports = function(config, db, modCB) {
 	
 	
 	function refreshTypes(cb) {
-		db.query('select * from `types`;', function(err, data) {
+		db.query('SELECT * from `types`;', function(err, data) {
 			if(err) return cb(err);
 			
 			types = Object.create(null);
@@ -156,8 +156,8 @@ module.exports = function(config, db, modCB) {
 	
 	CES.deleteEntity = function(eid, cb) {
 		
-		var del1 = 'DELETE FROM `components` WHERE `eid` = $1;';
-		var del2 = 'DELETE FROM `entities` WHERE `eid` = $1;';
+		var del1 = 'DELETE FROM `components` WHERE `eid` = ?;';
+		var del2 = 'DELETE FROM `entities` WHERE `eid` = ?;';
 		
 		function work(trandb, rollback, commit) {
 				
@@ -184,8 +184,8 @@ module.exports = function(config, db, modCB) {
 		'	FROM `components` c ' +
 		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID` ' +
 		'	WHERE ' +
-		'		c.`eid` = $1 ' +
-		'		AND c.`typeID` = $2;';
+		'		c.`eid` = ? ' +
+		'		AND c.`typeID` = ?;';
 	
 		db.query(q, [eid], function(err, res) {
 			if(err) return nt(cb, err);
@@ -211,7 +211,7 @@ module.exports = function(config, db, modCB) {
 		'		c.`data` ' +
 		'	FROM `components` c ' +
 		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID`' +
-		'	WHERE `eid` = $1;';
+		'	WHERE `eid` = ?;';
 	
 		db.query(q, [eid], function(err, res) {
 			if(err) return nt(cb, err);
@@ -231,26 +231,12 @@ module.exports = function(config, db, modCB) {
 
 	CES.setComponent = function(eid, comp, value, cb) {
 		
-		var del = 'DELETE FROM `components` WHERE `eid` = $1 AND `typeID` = $2;';
-		var ins = 'INSERT INTO `components` (`eid`, `typeID`, `data`) VALUES ($1, $2, $3);';
+		var ins = 'REPLACE INTO `components` (`eid`, `typeID`, `data`) VALUES (?, ?, ?);';
 		
 		// BUG: need dynamic comp updating
 		var typeID = types[comp];
 		
-		function work(trandb, rollback, commit) {
-				
-			trandb.query(del, [eid, typeID], function(err, res) {
-				if(err) return rollback(err);
-				
-				trandb.query(ins, [eid, typeID, value], function(err, res) {
-					if(err) return rollback(err);
-					
-					commit();
-				});
-			});
-		};
-		
-		dbutil.trans(db, work, cb);
+		db.query(ins, [eid, typeID, value], cb);
 	};
 	
 	// HACK not exactly efficient...
@@ -268,7 +254,7 @@ module.exports = function(config, db, modCB) {
 		
 		// HACK this function is sloppy copypasta
 		
-		var del = 'DELETE FROM `components` WHERE `eid` = $1 AND `typeID` = $2;';
+		var del = 'DELETE FROM `components` WHERE `eid` = ? AND `typeID` = ?;';
 		
 		// BUG: need dynamic comp updating
 		var typeID = types[comp];
@@ -295,7 +281,7 @@ module.exports = function(config, db, modCB) {
 		'		c.`data` ' +
 		'	FROM `components` c ' +
 		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID`' +
-		'	WHERE `eid` = $1;';
+		'	WHERE `eid` = ?;';
 	
 		db.query(q, [eid], function(err, res) {
 			if(err) return nt(cb, err);
