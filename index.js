@@ -32,67 +32,6 @@ alternately, systems could specify to run only for components that match some sq
 
 */
 
-/*
-
-
-schema:
-
-	create table `components_double` (
-	`eid` INT,
-	`typeID` INT,
-	`data` double,
-	`rev` int,
-	PRIMARY KEY (`eid`, `typeID`)
-	);
-
-create table `components_int` (
-	`eid` INT,
-	`typeID` INT,
-	`data` BIGINT,
-	`rev` int,
-	PRIMARY KEY (`eid`, `typeID`)
-	);
-
-create table `components_string` (
-	`eid` INT,
-	`typeID` INT,
-	`data` VARCHAR(31000),
-	`rev` int,
-	PRIMARY KEY (`eid`, `typeID`)
-	);
-
-create table `components_date` (
-	`eid` INT,
-	`typeID` INT,
-	`data` timestamp with timezone,
-	`rev` int,
-	PRIMARY KEY (`eid`, `typeID`)
-	);
-	
-CREATE INDEX components_eid ON components (eid);
-CREATE INDEX components_eid_typeID ON components (eid, typeID);
-
-create table `entities` (
-	`eid` SERIAL PRIMARY KEY,
-	`name` TEXT,
-	`entityType` TEXT
-	`deleted` bool not null default false
-	);
-
-CREATE INDEX entities_eid ON entities (eid);
-
-create table `types` (
-	`typeID` SERIAL PRIMARY KEY,
-	`name` VARCHAR(64),
-	`is_double` bool,
-	`is_int` bool,
-	`is_string` bool,
-	`is_date` bool
-	);
-
-
-*/
-
 
 
 
@@ -156,19 +95,22 @@ module.exports = function(config, db, modCB) {
 	
 	CES.deleteEntity = function(eid, cb) {
 		
-		var del1 = 'DELETE FROM `components` WHERE `eid` = ?;';
-		var del2 = 'DELETE FROM `entities` WHERE `eid` = ?;';
+		var del =[
+			'DELETE FROM `components_double` WHERE `eid` = ?;',
+			'DELETE FROM `components_int` WHERE `eid` = ?;',
+			'DELETE FROM `components_string` WHERE `eid` = ?;',
+			'DELETE FROM `components_date` WHERE `eid` = ?;',
+			'DELETE FROM `entities` WHERE `eid` = ?;',
+		];
 		
 		function work(trandb, rollback, commit) {
-				
-			trandb.query(del1, [eid], function(err, res) {
+			
+			async.map(del, function(x, acb) {
+				trandb.query(x, [eid], acb);
+			}, 
+			function(err) {
 				if(err) return rollback(err);
-				
-				trandb.query(del2, [eid], function(err, res) {
-					if(err) return rollback(err);
-				
-					commit();
-				});
+				commit();
 			});
 		};
 		
@@ -250,11 +192,13 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	
-	CES.removeComponent = function(eid, comp, cb) {
+	CES.removeComponent = function(eid, comps, cb) {
 		
 		// HACK this function is sloppy copypasta
 		
 		var del = 'DELETE FROM `components` WHERE `eid` = ? AND `typeID` = ?;';
+		
+		
 		
 		// BUG: need dynamic comp updating
 		var typeID = types[comp];
@@ -314,6 +258,16 @@ module.exports = function(config, db, modCB) {
 // 		}
 // 		return cnt;
 // 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	return CES;
