@@ -193,10 +193,22 @@ module.exports = function(config, db, modCB) {
 		
 		// HACK this function is sloppy copypasta
 		
-		var del = 'DELETE FROM `components` WHERE `eid` = ? AND `typeID` = ?;';
+		
+		var del =[
+			'DELETE FROM `components_double` WHERE `eid` = ? AND `typeID` = ?;',
+			'DELETE FROM `components_int` WHERE `eid` = ? AND `typeID` = ?;',
+			'DELETE FROM `components_string` WHERE `eid` = ? AND `typeID` = ?;',
+			'DELETE FROM `components_date` WHERE `eid` = ? AND `typeID` = ?;',
+		];
 		
 		
-		
+		var m = {
+			double: [],
+			int: [],
+			string: [],
+			date: [],
+			
+		}
 		// BUG: need dynamic comp updating
 		var typeID = types[comp];
 		
