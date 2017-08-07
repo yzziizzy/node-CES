@@ -26,23 +26,23 @@ CREATE TABLE IF NOT EXISTS `components_string` (
 CREATE TABLE IF NOT EXISTS `components_date` (
 	`eid` INT,
 	`typeID` INT,
-	`data` timestamp with timezone,
+	`data` timestamp,
 	`rev` int,
 	PRIMARY KEY (`eid`, `typeID`)
 );
 
 
 CREATE TABLE IF NOT EXISTS `entities` (
-	`eid` AUTO_INCREMENT PRIMARY KEY,
+	`eid` INT AUTO_INCREMENT PRIMARY KEY,
 	`name` TEXT,
-	`entityType` TEXT
+	`entityType` TEXT,
 	`deleted` bool not null default false
 );
 
 
 
 CREATE TABLE IF NOT EXISTS `types` (
-	`typeID` AUTO_INCREMENT PRIMARY KEY,
+	`typeID` INT AUTO_INCREMENT PRIMARY KEY,
 	`name` VARCHAR(64),
 	`is_double` bool,
 	`is_int` bool,
