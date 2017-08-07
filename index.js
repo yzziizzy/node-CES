@@ -36,6 +36,11 @@ alternately, systems could specify to run only for components that match some sq
 
 // getEntityWithComponentValue(compType, value, cb);
 
+function nt(cb, err) {
+	console.log(err);
+	cb(err);
+}
+
 
 module.exports = function(config, db, modCB) {
 	
@@ -63,6 +68,64 @@ module.exports = function(config, db, modCB) {
 	
 	var CES = {};
 	
+	// return a copy of the type list
+	CES.listTypes = function(cb) {
+		var list = {};
+		Object.assign(list, types);
+		cb(null, list);
+	};
+	
+	// returns new type id
+	CES.addType = function(name, type, cb) {
+		
+		name = name.replace(/^\s+/, '').replace(/\s+$/, '');
+		if(name == '') {
+			return nt(cb, "no type name given");
+		}
+		
+		// neutered to test the db version of this
+		if(types[name]) {
+			return nt(cb, "Type name already exists.")
+		}
+		
+		var tcol = {
+			'double': 'is_double',
+			'string': 'is_string',
+			'int': 'is_int',
+			'date': 'is_date',
+		}[type];
+		
+		var q = 'INSERT INTO `types` (`name`, `'+tcol+'`) VALUES (?, true);';
+		
+		db.query(q, [name], function(err, res) {
+			if(err) {
+				if(err.code == 'ER_DUP_ENTRY') {
+					return nt(cb, "type name already exists.");
+				}
+				
+				return nt(cb, err);
+			}
+			
+			var id = parseInt(res.insertId);
+			
+			// update the local type lookups
+			types[name] = id;
+			typeNames[id] = name;
+			
+			cb(null, id);
+		});
+	}
+	
+	
+	// returns the new entity id
+	CES.listEntities = function(cb) {
+		var q = 'SELECT * from `entities`;';
+		db.query(q, function(err, res) {
+			if(err) return nt(cb, err);
+			console.log(res);
+			cb(err, res);
+		});
+	};
 	
 	// returns the new entity id
 	CES.createEntity = function(name, type, cb) {
@@ -73,7 +136,7 @@ module.exports = function(config, db, modCB) {
 			if(err) return nt(cb, err);
 			
 			// TODO: how does this work again?
-			cb(null, res.eid);
+			cb(null, res.insertId);
 		});
 	};
 	
@@ -114,19 +177,32 @@ module.exports = function(config, db, modCB) {
 		dbutil.trans(db, work, cb);
 	};
 	
-	CES.getComponent = function(eid, comp, cb) {
+	CES.getComponent = function(eid, compName, cb) {
 		
 		var q = '' +
 		'	SELECT ' +
 		'		t.`name`, ' +
-		'		c.`data` ' +
-		'	FROM `components` c ' +
-		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID` ' +
+		'		COALESCE(ci.`data`, cd.`data`, ct.`data`, cs.`data`) as `data`' +
+		'	FROM `types` t ' +
+		'	LEFT JOIN `components_int` ci ON ci.`typeID` = t.`typeID` ' +
+		'	LEFT JOIN `components_double` cd ON cd.`typeID` = t.`typeID` ' +
+		'	LEFT JOIN `components_date` ct ON ct.`typeID` = t.`typeID` ' +
+		'	LEFT JOIN `components_string` cs ON cs.`typeID` = t.`typeID` ' +
 		'	WHERE ' +
-		'		c.`eid` = ? ' +
-		'		AND c.`typeID` = ?;';
+		'		( ' +
+		'			ci.`eid` = ? ' +
+		'			OR cd.`eid` = ? ' +
+		'			OR ct.`eid` = ? ' +
+		'			OR cs.`eid` = ? ' +
+		'		) ' +
+		'		AND t.`typeID` = ?;';
 	
-		db.query(q, [eid], function(err, res) {
+		var typeId = types[compName];
+		if(!typeId) {
+			return nt(cb, "no such component");
+		}
+		
+		db.query(q, [eid, typeId], function(err, res) {
 			if(err) return nt(cb, err);
 			
 			var list = Object.create(null);
@@ -226,7 +302,7 @@ module.exports = function(config, db, modCB) {
 	
 	
 	// not working
-	CES.findEntityBy= function(comp, value, cb) {
+	CES.findEntityBy = function(comp, value, cb) {
 		
 		var q = '' +
 		'	SELECT ' +
@@ -275,7 +351,7 @@ module.exports = function(config, db, modCB) {
 	
 	
 	
-	
+	refreshTypes(modCB);
 	
 	
 	

@@ -1,4 +1,5 @@
- 
+
+/*
 CREATE TABLE IF NOT EXISTS `components_double` (
 	`eid` INT,
 	`typeID` INT,
@@ -31,6 +32,18 @@ CREATE TABLE IF NOT EXISTS `components_date` (
 	PRIMARY KEY (`eid`, `typeID`)
 );
 
+*/
+
+CREATE TABLE IF NOT EXISTS `components` (
+	`eid` INT,
+	`typeID` INT,
+	`data_double` double,
+	`data_int` BIGINT,
+	`data_string` VARCHAR(31000),
+	`data_date` timestamp,
+	`rev` int,
+	PRIMARY KEY (`eid`, `typeID`)
+);
 
 CREATE TABLE IF NOT EXISTS `entities` (
 	`eid` INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,8 +57,9 @@ CREATE TABLE IF NOT EXISTS `entities` (
 CREATE TABLE IF NOT EXISTS `types` (
 	`typeID` INT AUTO_INCREMENT PRIMARY KEY,
 	`name` VARCHAR(64),
-	`is_double` bool,
-	`is_int` bool,
-	`is_string` bool,
-	`is_date` bool
+	`is_double` bool default false,
+	`is_int` bool default false,
+	`is_string` bool default false,
+	`is_date` bool default false,
+	unique(`name`)
 );
