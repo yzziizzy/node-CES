@@ -4,6 +4,7 @@
 var mysql = require('mysql');
 
 
+var async = require('async');
 var Promise = require('bluebird');
 var colors = require('colors');
 var argv = require('minimist')(process.argv.slice(2));
@@ -22,8 +23,29 @@ var conn = mysql.createPool(config.db);
 var CES = require('./index')(config.CES, conn, function(){
 	console.log('database initialized');
 	
-	
-	
+	async.series([
+		//function(cb) { CES.createType('cost', 'int', cb) },
+		//function(cb) { CES.createType('name', 'string', cb) },
+		//function(cb) { CES.createType('created_at', 'date', cb) },
+		//function(cb) { CES.createType('weight', 'double', cb) },
+		
+		function(cb) { CES.createEntityWithComps('rock', {
+			cost: 1399,
+			name: 'cut glass',
+			created_at: '2017-01-01 03:14:15',
+			weight: 6.7,
+		}, cb) },
+		
+		function(cb) { CES.getAllComponents(3, function(err, data) {
+			console.log(err, data);
+			cb()
+		})},
+			
+		
+	], function() {
+		
+		console.log('done');
+	});
 	
 	
 	

@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS `components` (
 	`data_int` BIGINT,
 	`data_string` VARCHAR(31000),
 	`data_date` timestamp,
-	`rev` int,
+	`rev` int default 1,
 	PRIMARY KEY (`eid`, `typeID`)
 );
 

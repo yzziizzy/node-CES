@@ -9,6 +9,7 @@
 
 var Promise = require('bluebird');
 var async = require('async');
+var _ = require('underscore');
 
 
 
@@ -46,6 +47,7 @@ module.exports = function(config, db, modCB) {
 	
 	var types = null;
 	var typeNames = null;
+	var typeInternal = null;
 	
 	
 	function refreshTypes(cb) {
@@ -54,17 +56,42 @@ module.exports = function(config, db, modCB) {
 			
 			types = Object.create(null);
 			typeNames = Object.create(null);
+			typeInternal = Object.create(null);
 			
 			for(var i = 0; i < data.length; i++) {
 				types[data[i].name] = parseInt(data[i].typeID);
 				typeNames[parseInt(data[i].typeID)] = data[i].name;
+				
+				var dtype;
+				if(data[i].is_double) dtype = 'double';
+				else if(data[i].is_int) dtype = 'int';
+				else if(data[i].is_string) dtype = 'string';
+				else if(data[i].is_date) dtype = 'date';
+				 
+				typeInternal[parseInt(data[i].typeID)] = dtype;
 			}
 			
 			cb(null);
 		});
 	};
 	
+	function typeToBoolCol(str) {
+		return {
+			'double': 'is_double',
+			'string': 'is_string',
+			'int': 'is_int',
+			'date': 'is_date',
+		}[str];
+	}
 	
+	function typeToDataCol(str) {
+		return {
+			'double': 'data_double',
+			'string': 'data_string',
+			'int': 'data_int',
+			'date': 'data_date',
+		}[str];
+	}
 	
 	var CES = {};
 	
@@ -76,7 +103,7 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	// returns new type id
-	CES.addType = function(name, type, cb) {
+	CES.createType = function(name, type, cb) {
 		
 		name = name.replace(/^\s+/, '').replace(/\s+$/, '');
 		if(name == '') {
@@ -129,10 +156,11 @@ module.exports = function(config, db, modCB) {
 	
 	// returns the new entity id
 	CES.createEntity = function(name, type, cb) {
-		
+		console.log(name, type);
 		var q = 'INSERT INTO `entities` (`name`, `entityType`) VALUES (?, ?);';   
 		
 		db.query(q, [name, type], function(err, res) {
+			console.log('entity created', err)
 			if(err) return nt(cb, err);
 			
 			// TODO: how does this work again?
@@ -142,8 +170,9 @@ module.exports = function(config, db, modCB) {
 	
 	// returns the new entity id
 	CES.createEntityWithComps = function(name, compList, cb) {
-		var eid = CES.createEntity(name, function(err, eid) {
+		var eid = CES.createEntity(name, 'unspecified', function(err, eid) {
 			if(err) return nt(cb, err);
+			console.log('created entity ' + eid)
 			
 			CES.setComponentList(eid, compList, function(err2) {
 				cb(err, eid);
@@ -156,10 +185,7 @@ module.exports = function(config, db, modCB) {
 	CES.deleteEntity = function(eid, cb) {
 		
 		var del =[
-			'DELETE FROM `components_double` WHERE `eid` = ?;',
-			'DELETE FROM `components_int` WHERE `eid` = ?;',
-			'DELETE FROM `components_string` WHERE `eid` = ?;',
-			'DELETE FROM `components_date` WHERE `eid` = ?;',
+			'DELETE FROM `components` WHERE `eid` = ?;',
 			'DELETE FROM `entities` WHERE `eid` = ?;',
 		];
 		
@@ -182,35 +208,41 @@ module.exports = function(config, db, modCB) {
 		var q = '' +
 		'	SELECT ' +
 		'		t.`name`, ' +
-		'		COALESCE(ci.`data`, cd.`data`, ct.`data`, cs.`data`) as `data`' +
+		'		c.`data_double`, ' +
+		'		c.`data_int`, ' +
+		'		c.`data_date`, ' +
+		'		c.`data_string`, ' +
+		'		t.`is_double`, ' +
+		'		t.`is_int`, ' +
+		'		t.`is_date`, ' +
+		'		t.`is_string` ' +
 		'	FROM `types` t ' +
-		'	LEFT JOIN `components_int` ci ON ci.`typeID` = t.`typeID` ' +
-		'	LEFT JOIN `components_double` cd ON cd.`typeID` = t.`typeID` ' +
-		'	LEFT JOIN `components_date` ct ON ct.`typeID` = t.`typeID` ' +
-		'	LEFT JOIN `components_string` cs ON cs.`typeID` = t.`typeID` ' +
+		'	LEFT JOIN `components` c ON c.`typeID` = t.`typeID` ' +
 		'	WHERE ' +
-		'		( ' +
-		'			ci.`eid` = ? ' +
-		'			OR cd.`eid` = ? ' +
-		'			OR ct.`eid` = ? ' +
-		'			OR cs.`eid` = ? ' +
-		'		) ' +
-		'		AND t.`typeID` = ?;';
+		'		c.`eid` = ? ' +
+		'		AND t.`name` = ?;';
 	
 		var typeId = types[compName];
 		if(!typeId) {
 			return nt(cb, "no such component");
 		}
 		
-		db.query(q, [eid, typeId], function(err, res) {
+		db.query(q, [eid, compName], function(err, res) {
 			if(err) return nt(cb, err);
 			
 			var list = Object.create(null);
 			list.eid = eid;
 			
 			for(var i = 0; i < res.rows.length; i++) {
-				list[res.rows[i].name] = JSON.parse(res.rows[i].data);
-				// TODO: how does this work again?
+				var data;
+				var row = res.rows[i];
+				
+				if(row.is_double) data = data_double;
+				else if(row.is_int) data = data_int;
+				else if(row.is_date) data = data_date;
+				else if(row.is_string) data = data_string;
+				
+				list[row.name] = data;
 			}
 			
 			cb(null, list);
@@ -219,24 +251,43 @@ module.exports = function(config, db, modCB) {
 	};
 
 	CES.getAllComponents = function(eid, cb) {
-		
+		console.log("fetching components")
 		var q = '' +
 		'	SELECT ' +
 		'		t.`name`, ' +
-		'		c.`data` ' +
+		'		c.`data_double`, ' +
+		'		c.`data_int`, ' +
+		'		c.`data_date`, ' +
+		'		c.`data_string`, ' +
+		'		t.`is_double`, ' +
+		'		t.`is_int`, ' +
+		'		t.`is_date`, ' +
+		'		t.`is_string` ' +
 		'	FROM `components` c ' +
-		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID`' +
-		'	WHERE `eid` = ?;';
+		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID` ' +
+		'	WHERE c.`eid` = ?;';
 	
 		db.query(q, [eid], function(err, res) {
 			if(err) return nt(cb, err);
 			
+			if(!res) {
+				console.log('no components found');
+				return cb(null, {});
+			}
+				 
 			var list = Object.create(null);
 			list.eid = eid;
 			
-			for(var i = 0; i < res.rows.length; i++) {
-				list[res.rows[i].name] = JSON.parse(res.rows[i].data);
-				// TODO: how does this work again?
+			for(var i = 0; i < res.length; i++) {
+				var data;
+				var row = res[i];
+				
+				if(row.is_double) data = row.data_double;
+				else if(row.is_int) data = row.data_int;
+				else if(row.is_date) data = row.data_date;
+				else if(row.is_string) data = row.data_string;
+				
+				list[row.name] = data;
 			}
 			
 			cb(null, list);
@@ -246,10 +297,10 @@ module.exports = function(config, db, modCB) {
 
 	CES.setComponent = function(eid, comp, value, cb) {
 		
-		var ins = 'REPLACE INTO `components` (`eid`, `typeID`, `data`) VALUES (?, ?, ?);';
-		
-		// BUG: need dynamic comp updating
 		var typeID = types[comp];
+		var dcol = typeToDataCol(typeInternal[typeID]);
+		
+		var ins = 'REPLACE INTO `components` (`eid`, `typeID`, `'+dcol+'`) VALUES (?, ?, ?);';
 		
 		db.query(ins, [eid, typeID, value], cb);
 	};
@@ -261,43 +312,19 @@ module.exports = function(config, db, modCB) {
 			return function(acb) {
 				CES.setComponent(eid, comp, value, acb);
 			}
-		}));
+		}), cb);
 	};
 	
 	
 	CES.removeComponent = function(eid, comps, cb) {
 		
-		// HACK this function is sloppy copypasta
-		
-		
-		var del =[
-			'DELETE FROM `components_double` WHERE `eid` = ? AND `typeID` = ?;',
-			'DELETE FROM `components_int` WHERE `eid` = ? AND `typeID` = ?;',
-			'DELETE FROM `components_string` WHERE `eid` = ? AND `typeID` = ?;',
-			'DELETE FROM `components_date` WHERE `eid` = ? AND `typeID` = ?;',
-		];
-		
-		
-		var m = {
-			double: [],
-			int: [],
-			string: [],
-			date: [],
-			
-		}
-		// BUG: need dynamic comp updating
+		var del = 'DELETE FROM `components_double` WHERE `eid` = ? AND `typeID` = ?;';
 		var typeID = types[comp];
 		
-		function work(trandb, rollback, commit) {
-				
-			trandb.query(del, [eid, typeID], function(err, res) {
-				if(err) return rollback(err);
-				
-				commit();
-			});
-		};
-		
-		dbutil.trans(db, work, cb);
+		db.query(del, [eid, typeID], function(err, res) {
+			if(err) return nt(cb, err);
+			cb(null);
+		});
 	};
 	
 	
