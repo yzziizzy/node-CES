@@ -54,7 +54,6 @@ var CES = require('./index')(config.CES, conn, function(){
 
 
 
-
 app.all('/types', function(req, res) {
 
 	CES.listTypes(function(err, types) {
@@ -73,6 +72,14 @@ app.all('/newEntity', function(req, res) {
 // 	console.log(req);
 	CES.createEntity(req.query.name, 'foo', function(err, entities) {
 		res.send(JSON.stringify(entities));
+	});
+
+});
+
+app.all('/fetchEntity', function(req, res) {
+// 	console.log(req);
+	CES.getAllComponents(req.query.eid, function(err, entity) {
+		res.send(JSON.stringify(entity));
 	});
 
 });

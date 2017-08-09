@@ -295,6 +295,60 @@ module.exports = function(config, db, modCB) {
 		
 	};
 
+	
+	
+	CES.fetchEntitesByID = function(eids, cb) {
+		
+		
+		var q = '' +
+		'	SELECT ' +
+		'		c.`eid`, ' +
+		'		t.`name`, ' +
+		'		c.`data_double`, ' +
+		'		c.`data_int`, ' +
+		'		c.`data_date`, ' +
+		'		c.`data_string`, ' +
+		'		t.`is_double`, ' +
+		'		t.`is_int`, ' +
+		'		t.`is_date`, ' +
+		'		t.`is_string` ' +
+		'	FROM `components` c ' +
+		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID` ' +
+		'	WHERE c.`eid` IN ?;';
+	
+		db.query(q, [eids], function(err, res) {
+			if(err) return nt(cb, err);
+			
+			if(!res) {
+				console.log('no components found');
+				return cb(null, {});
+			}
+			
+			var entities = {};
+			
+			var list = Object.create(null);
+			list.eid = eid;
+			
+			for(var i = 0; i < res.length; i++) {
+				var data;
+				var row = res[i];
+				
+				if(row.is_double) data = row.data_double;
+				else if(row.is_int) data = row.data_int;
+				else if(row.is_date) data = row.data_date;
+				else if(row.is_string) data = row.data_string;
+				
+				list[row.name] = data;
+			}
+			
+			cb(null, list);
+		});
+		
+	};
+	
+	
+	
+	
 	CES.setComponent = function(eid, comp, value, cb) {
 		
 		var typeID = types[comp];
@@ -318,13 +372,20 @@ module.exports = function(config, db, modCB) {
 	
 	CES.removeComponent = function(eid, comps, cb) {
 		
-		var del = 'DELETE FROM `components_double` WHERE `eid` = ? AND `typeID` = ?;';
+		var del = 'DELETE FROM `components` WHERE `eid` = ? AND `typeID` = ?;';
 		var typeID = types[comp];
 		
 		db.query(del, [eid, typeID], function(err, res) {
 			if(err) return nt(cb, err);
 			cb(null);
 		});
+	};
+	
+	
+	// not working
+	CES.fetchEntitiesWithComps = function(compNames, cb) {
+		
+		
 	};
 	
 	
