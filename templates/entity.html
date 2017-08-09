@@ -1,22 +1,37 @@
+<table class="entity-table">
+<tr>
+	<th>EID</th>
+	<th>Name</th>
+	<th>Entity Type</th>
+	<th>Deleted</th>
+	<th></th>
+</tr>
 {{#each this}}
-<div class="entity" eid={{eid}}>
-	<div class="header">
-		{{eid}} : {{name}} : {{entityType}} : {{deleted}}
-		<span class="fetch_status" style="text-align: right;"></span>
+<tr class="entity-header" eid={{eid}}>
+	<td>{{eid}}</td>
+	<td>{{name}}</td>
+	<td>{{entityType}}</td>
+	<td>{{deleted}}</td>
+	<td>
 		<button action="fetch-components" style="display: inline-block; text-align: right;">Fetch Components</button>
-	
-	</div> 
-	<div class="components">
-		
-		{{#each components}}
-			{{#equals @key 'eid'}}
-			{{else}}
-				<div class="component">
-					<div>{{@key}} {{this}}<input class="valedit" eid="{{../eid}}" name="{{@key}}" type="edit" value="{{this}}" /></div>
-				</div>
-			{{/equals}}
-		{{/each}}
-	</div>
-	<button action="save" style="display:none;">Save</button><span class="save_status"></span>
-</div>
+		<span class="fetch_status" style="text-align: right;"></span>
+	</td>
+</tr>
+<tr class="entity-details" eid={{eid}} style="display:none;">
+	<td colspan="5">
+		<div class="components">
+			
+			{{#each components}}
+				{{#equals @key 'eid'}}
+				{{else}}
+					<div class="component">
+						<div>{{@key}} {{this}}<input class="valedit" eid="{{../eid}}" name="{{@key}}" type="edit" value="{{this}}" /></div>
+					</div>
+				{{/equals}}
+			{{/each}}
+		</div>
+		<button action="save" style="display:none;">Save</button><span class="save_status"></span>
+	</td>
+</tr>
 {{/each}}
+</table>

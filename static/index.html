@@ -28,18 +28,20 @@
 			max-width: 690px;
 		}
    
-		.entity {
-			border: 2px solid pink;
-			margin-bottom: 10px; 
-			max-width: 700px;
+		.entity-table {
+			border-collapse: collapse;
 		}
 		
-		.entity .header {
+		.entity-header {
 			background-color: pink;
 			padding: 5px;
 		}
-    
-		.entity .components {
+		
+		.entity-details {
+			border: 2px solid pink;
+		}
+		
+		.entity-details .components {
 			padding: 5px;
 		}
     
@@ -101,31 +103,29 @@
 				
 			});
 			
-			$(document).on('click', '.entity [action="fetch-components"]', function(e) {
+			$(document).on('click', '.entity-header [action="fetch-components"]', function(e) {
 				var en = $(e.target);
-				var entity = en.closest('.entity');
+				var entity = en.closest('.entity-header')
 				var eid = entity.attr('eid')|0;
 				console.log('eid: ', eid)
 				
 				CES.fetchEntity(eid, function(err, comps) {
 					console.log('comps: ', comps);
-					entity.find('.components').html(HB['components'](comps));
-					entity.find('button[action="save"]').show();
+					var ed = $('.entity-details[eid="'+eid+'"]');
+					ed.show();
+					ed.find('.components').html(HB['components'](comps));
+					ed.find('button[action="save"]').show();
 				});
 			});
 			
-			$(document).on('click', '.entity [action="save"]', function(e) {
+			$(document).on('click', '.entity-details [action="save"]', function(e) {
 				console.log('save clicked', e);
 				var en = $(e.target);
-				var entity_list = en.closest('.entity_list');
-				var entity = en.closest('.entity');
-				var data = entity_list.data('entities');
-				var eid = entity.attr('eid')|0;
-				var old_entity = data[eid];
-				console.log(old_entity);
+				var entity_details = en.closest('.entity-details');
+				var eid = entity_details.attr('eid')|0;
 				
 				var new_entity = {eid: eid};
-				entity.find('input.valedit').each(function() {
+				entity_details.find('input.valedit').each(function() {
 					var name = $(this).attr('name');
 					var val = $(this).val();
 					
@@ -134,7 +134,7 @@
 				
 				console.log(new_entity)
 				
-				var status_node = entity.find('.save_status');
+				var status_node = entity_details.find('.save_status');
 				status_node.html('saving...').removeClass('red green').addClass('yellow');
 				
 				CES.upsertEntity(new_entity, function(err, data) {
