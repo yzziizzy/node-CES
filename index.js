@@ -54,9 +54,9 @@ module.exports = function(config, db, modCB) {
 		db.query('SELECT * from `types`;', function(err, data) {
 			if(err) return cb(err);
 			
-			types = Object.create(null);
-			typeNames = Object.create(null);
-			typeInternal = Object.create(null);
+			types = Object.create(null); // ids keyed by name
+			typeNames = Object.create(null); // names keyed by id
+			typeInternal = Object.create(null); // data types keyed by id
 			
 			for(var i = 0; i < data.length; i++) {
 				types[data[i].name] = parseInt(data[i].typeID);
@@ -98,7 +98,14 @@ module.exports = function(config, db, modCB) {
 	// return a copy of the type list
 	CES.listTypes = function(cb) {
 		var list = {};
-		Object.assign(list, types);
+		_.map(types, function(id, name) {
+			list[id] = {
+				name: name,
+				id: id,
+				dataType: typeInternal[id],
+			};
+		});
+		
 		cb(null, list);
 	};
 	
@@ -138,7 +145,8 @@ module.exports = function(config, db, modCB) {
 			// update the local type lookups
 			types[name] = id;
 			typeNames[id] = name;
-			
+			typeInternal[id] = type;
+		
 			cb(null, id);
 		});
 	}
@@ -149,18 +157,18 @@ module.exports = function(config, db, modCB) {
 		var q = 'SELECT * from `entities`;';
 		db.query(q, function(err, res) {
 			if(err) return nt(cb, err);
-			console.log(res);
+			//console.log(res);
 			cb(err, res);
 		});
 	};
 	
 	// returns the new entity id
 	CES.createEntity = function(name, type, cb) {
-		console.log(name, type);
+		//console.log(name, type);
 		var q = 'INSERT INTO `entities` (`name`, `entityType`) VALUES (?, ?);';   
 		
 		db.query(q, [name, type], function(err, res) {
-			console.log('entity created', err)
+			//console.log('entity created', err)
 			if(err) return nt(cb, err);
 			
 			// TODO: how does this work again?
@@ -172,7 +180,7 @@ module.exports = function(config, db, modCB) {
 	CES.createEntityWithComps = function(name, compList, cb) {
 		var eid = CES.createEntity(name, 'unspecified', function(err, eid) {
 			if(err) return nt(cb, err);
-			console.log('created entity ' + eid)
+			//console.log('created entity ' + eid)
 			
 			CES.setComponentList(eid, compList, function(err2) {
 				cb(err, eid);
@@ -251,7 +259,7 @@ module.exports = function(config, db, modCB) {
 	};
 
 	CES.getAllComponents = function(eid, cb) {
-		console.log("fetching components")
+		//console.log("fetching components")
 		var q = '' +
 		'	SELECT ' +
 		'		t.`name`, ' +
@@ -274,7 +282,7 @@ module.exports = function(config, db, modCB) {
 				console.log('no components found');
 				return cb(null, {});
 			}
-				 
+			
 			var list = Object.create(null);
 			list.eid = eid;
 			
@@ -289,7 +297,7 @@ module.exports = function(config, db, modCB) {
 				
 				list[row.name] = data;
 			}
-			
+
 			cb(null, list);
 		});
 		
@@ -361,9 +369,8 @@ module.exports = function(config, db, modCB) {
 	
 	// HACK not exactly efficient...
 	CES.setComponentList = function(eid, compList, cb) {
-		
 		async.parallel(_.map(compList, function(value, comp) {
-			return function(acb) {
+			return function(acb) { 
 				CES.setComponent(eid, comp, value, acb);
 			}
 		}), cb);
@@ -384,7 +391,26 @@ module.exports = function(config, db, modCB) {
 	
 	// not working
 	CES.fetchEntitiesWithComps = function(compNames, cb) {
+				
+		var q = '' +
+			'SELECT ' +
+			'	e.* ' +
+			'FROM `entities` e ' +
+			'INNER JOIN `components` c ON e.eid = c.eid ' +
+			'WHERE ' +
+			'	c.`typeID` IN ? ' +
+			';';
 		
+		var compIDs = [];
+		types.map(function(v, k) {
+			if(-1 !== compNames.indexOf(k)) compIDs.push(v);
+		});
+		
+		db.query(q, [compIDs], function(err, res) {
+			if(err) return nt(cb, err);
+			//console.log(res);
+			cb(err, res);
+		});
 		
 	};
 	

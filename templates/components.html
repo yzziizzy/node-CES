@@ -1,0 +1,8 @@
+{{#each this}}
+	{{#equals @key 'eid'}}
+	{{else}}
+		<div class="component">
+			<div>{{@key}} {{this}}<input class="valedit" eid="{{../eid}}" name="{{@key}}" type="edit" value="{{this}}" /></div>
+		</div>
+	{{/equals}}
+{{/each}}

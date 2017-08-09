@@ -1,0 +1,165 @@
+<html>
+  <head>
+    <title></title>
+    <meta content="">
+    <style>
+		.green { color: green; }
+		.red { color: red; }
+		.yellow { color: dark-yellow; }
+		
+		.entity_types {
+			border: 2px solid olive;
+			margin-bottom: 20px;
+			max-width: 690px;
+		}
+
+		.entity_types .header {
+			background-color: olive;
+			padding: 5px;
+		}
+
+		.entity_types .type {
+			padding: 2px 5px;
+		}
+		
+ 		.entity_types {
+			border: 2px solid olive;
+			margin-bottom: 20px;
+			max-width: 690px;
+		}
+   
+		.entity {
+			border: 2px solid pink;
+			margin-bottom: 10px; 
+			max-width: 700px;
+		}
+		
+		.entity .header {
+			background-color: pink;
+			padding: 5px;
+		}
+    
+		.entity .components {
+			padding: 5px;
+		}
+    
+		.entity .components .component {
+			border-bottom: 1px solid gray;
+			padding: 10px 0px;
+		}
+
+		.entity .components .component:last-child {
+			border-bottom: none;
+		}
+    
+    </style>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.10/handlebars.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    
+	<script type="text/javascript" src="./templates.js"></script>
+	<script type="text/javascript" src="./ces.js"></script>
+	<script type="text/javascript">
+		
+		$(function() {
+			function refreshEntities() {
+				$.getJSON('/entities', function(data, status) {
+					$('.entity_list').html(JSON.stringify(data));
+				}) 
+				
+			}
+			
+			
+			$('.btn_newentity').click(function(e) {
+				e.preventDefault();
+				$.getJSON('/newEntity', {name: $('.newentity').val()}, function(data, status) {
+					refreshEntities();
+				});
+			})
+			
+			CES.listTypes(function(err, data) {
+				$('.entity_types').html(HB['types'](data));
+				
+			});
+			CES.allEntities(function(err, data) {
+				$('.entity_list').html(HB['entity'](data)).data('entities', data);
+				
+			});
+			
+			
+			$(document).on('click', '.newType [action="create"]', function(e) {
+				var en = $(e.target);
+				var parent = en.closest('.newType');
+				var name = parent.find('[name="name"]').val();
+				var dataType = parent.find('[name="dataType"]').val();
+				
+				if(name == '<name>') return;
+				
+				CES.addType(name, dataType, function(err, data) {
+					$('.entity_types').html(HB['types'](data));
+				})
+				
+			});
+			
+			$(document).on('click', '.entity [action="fetch-components"]', function(e) {
+				var en = $(e.target);
+				var entity = en.closest('.entity');
+				var eid = entity.attr('eid')|0;
+				console.log('eid: ', eid)
+				
+				CES.fetchEntity(eid, function(err, comps) {
+					console.log('comps: ', comps);
+					entity.find('.components').html(HB['components'](comps));
+					entity.find('button[action="save"]').show();
+				});
+			});
+			
+			$(document).on('click', '.entity [action="save"]', function(e) {
+				console.log('save clicked', e);
+				var en = $(e.target);
+				var entity_list = en.closest('.entity_list');
+				var entity = en.closest('.entity');
+				var data = entity_list.data('entities');
+				var eid = entity.attr('eid')|0;
+				var old_entity = data[eid];
+				console.log(old_entity);
+				
+				var new_entity = {eid: eid};
+				entity.find('input.valedit').each(function() {
+					var name = $(this).attr('name');
+					var val = $(this).val();
+					
+					new_entity[name] = val;
+				});
+				
+				console.log(new_entity)
+				
+				var status_node = entity.find('.save_status');
+				status_node.html('saving...').removeClass('red green').addClass('yellow');
+				
+				CES.upsertEntity(new_entity, function(err, data) {
+					console.log('upsert Entity callback');
+					if(!err) {
+						status_node.html('saved!').removeClass('red yellow').addClass('green');
+						setTimeout(function() { status_node.html('').removeClass('green'); }, 10000);
+					}
+					else {
+						status_node.html('save failed').removeClass('green yellow').addClass('red');
+					}
+				});
+				
+			});
+		});
+    </script>
+  </head>
+  <body>
+	<input class="newentity" type="edit" />
+	<button class="btn_newentity">Create Entity</button>
+	
+	
+	<div class="entity_types"></div>
+	
+	<div class="entity_list"></div>
+	
+  </body>
+</html>

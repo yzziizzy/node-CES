@@ -1,0 +1,14 @@
+<div class="header">Component Types</div>
+{{#each this}}
+	<div class="type"><b>{{id}}</b> - {{name}} - <i>{{dataType}}</i></div>
+{{/each}}
+<div class="newType">
+	<input name="name" value="&lt;name&gt;" />
+	<select name="dataType">
+		<option value="int">Integer</option>
+		<option value="double">Floating Point</option>
+		<option value="string">Text</option>
+		<option value="date">Date/Time</option>
+	</select>
+	<button action="create">Create Component Type</button>
+</div>

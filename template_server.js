@@ -25,6 +25,10 @@ function refresh() {
 	templates = tmps;
 }
 
+function sanitizePath(p) {
+	return p.replace(/^\/?templates?\/?/i, '').replace(/\.html?$/i, '');
+}
+
 function listDir(path, out) {
 	
 	return fs.readdirSync(path).map(function(filename) {
@@ -36,7 +40,7 @@ function listDir(path, out) {
 			listDir(p, out);
 		}
 		if(s.isFile() && tempFilter.test(filename)) {
-			out[p] = loadTemplate(p);
+			out[sanitizePath(p)] = loadTemplate(p);
 		}
 	})
 }
@@ -45,7 +49,8 @@ function loadTemplate(p) {
 	var src = fs.readFileSync(p, 'utf-8');
 	return {
 		hash: crypto.createHash('sha1').update(src).digest('hex'),
-		filepath: p,
+		filepath: sanitizePath(p),
+		source: src,
 		template: HB.precompile(src),
 	};
 }
