@@ -3,7 +3,7 @@
 	<th>EID</th>
 	<th>Name</th>
 	<th>Entity Type</th>
-	<th>Deleted</th>
+	<th></th>
 	<th></th>
 </tr>
 {{#each this}}
@@ -11,9 +11,11 @@
 	<td>{{eid}}</td>
 	<td>{{name}}</td>
 	<td>{{entityType}}</td>
-	<td>{{deleted}}</td>
 	<td>
-		<button action="fetch-components" style="display: inline-block; text-align: right;">Fetch Components</button>
+		<button action="delete">Delete</button>
+	</td>
+	<td>
+		<button action="fetch-components" style="display: inline-block; text-align: right;">Edit</button>
 		<span class="fetch_status" style="text-align: right;"></span>
 	</td>
 </tr>

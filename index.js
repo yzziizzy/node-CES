@@ -154,7 +154,7 @@ module.exports = function(config, db, modCB) {
 	
 	// returns the new entity id
 	CES.listEntities = function(cb) {
-		var q = 'SELECT * from `entities`;';
+		var q = 'SELECT * from `entities` WHERE deleted = false;';
 		db.query(q, function(err, res) {
 			if(err) return nt(cb, err);
 			//console.log(res);
@@ -192,23 +192,11 @@ module.exports = function(config, db, modCB) {
 	
 	CES.deleteEntity = function(eid, cb) {
 		
-		var del =[
-			'DELETE FROM `components` WHERE `eid` = ?;',
-			'DELETE FROM `entities` WHERE `eid` = ?;',
-		];
+		var q = 'UPDATE `entities` SET `deleted` = true WHERE `eid` = ?;';
 		
-		function work(trandb, rollback, commit) {
-			
-			async.map(del, function(x, acb) {
-				trandb.query(x, [eid], acb);
-			}, 
-			function(err) {
-				if(err) return rollback(err);
-				commit();
-			});
-		};
-		
-		dbutil.trans(db, work, cb);
+		db.query(q, [eid], function(err, res) {
+			cb(err);
+		});
 	};
 	
 	CES.getComponent = function(eid, compName, cb) {

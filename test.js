@@ -91,8 +91,9 @@ app.all('/entities', function(req, res) {
 	});
 });
 
-app.all('/newEntity', function(req, res) {
-	CES.createEntity(req.query.name, 'foo', function(err, entities) {
+app.all('/createEntity', function(req, res) {
+	console.log('creating entity', req.query)
+	CES.createEntityWithComps(req.query.name, req.query.components, function(err, entities) {
 		res.send(JSON.stringify(entities));
 	});
 });
@@ -105,6 +106,12 @@ app.all('/fetchEntity', function(req, res) {
 
 app.all('/upsertEntity', function(req, res) {
 	CES.setComponentList(req.query.eid, req.query, function(err, entity) {
+		res.send(JSON.stringify({}));
+	});
+});
+
+app.all('/deleteEntity', function(req, res) {
+	CES.deleteEntity(req.query.eid, function(err, entity) {
 		res.send(JSON.stringify({}));
 	});
 });

@@ -26,9 +26,9 @@ var CES = {};
 	};
 		
 	
-	CES.upsertEntity = function(ent, cb) {
+	CES.upsertEntity = function(name, ent, cb) {
 		
-		$.getJSON('/upsertEntity', ent, function(data, status) {
+		$.getJSON('/upsertEntity', {name: name, components: ent}, function(data, status) {
 			console.log("getjson callback for upsert entity")
 			if(status != 'success') {
 				console.log("failed to upsert entity #"+ent.eid+" with status code " + status);
@@ -39,6 +39,29 @@ var CES = {};
 		})
 	};
 		
+	CES.createEntity = function(name, ent, cb) {
+		
+		$.getJSON('/createEntity', {name: name, components: ent}, function(data, status) {
+			console.log("getjson callback for create entity")
+			if(status != 'success') {
+				console.log("failed to create entity #"+ent.eid+" with status code " + status);
+				cb(err);
+			}
+			
+			cb(null, data);
+		})
+	};
+		
+	CES.deleteEntity = function(eid, cb) {
+		$.getJSON('/deleteEntity', {eid: eid}, function(data, status) {
+			if(status != 'success') {
+				cb(status);
+				return;
+			}
+			
+			cb(null, data);
+		});
+	};
 	
 	CES.upsertComponents = function(eid, components, cb) {
 		

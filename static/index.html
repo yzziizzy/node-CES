@@ -45,13 +45,11 @@
 			padding: 5px;
 		}
     
-		.entity .components .component {
-			border-bottom: 1px solid gray;
-			padding: 10px 0px;
-		}
-
-		.entity .components .component:last-child {
-			border-bottom: none;
+		.newEntity {
+			border: 2px solid #aaaaff;
+			padding: 5px;
+			max-width: 690px;
+			margin-bottom: 20px;
 		}
     
     </style>
@@ -103,6 +101,18 @@
 				
 			});
 			
+			$(document).on('click', '.entity-header [action="delete"]', function(e) {
+				var en = $(e.target);
+				var entity = en.closest('.entity-header')
+				var eid = entity.attr('eid')|0;
+				CES.deleteEntity(eid, function(err, data) {
+					console.log('entity deleted ' + eid); 
+					$('.entity-header[eid="'+eid+'"]').remove();
+					$('.entity-details[eid="'+eid+'"]').remove();
+				});
+			});
+			
+			
 			$(document).on('click', '.entity-header [action="fetch-components"]', function(e) {
 				var en = $(e.target);
 				var entity = en.closest('.entity-header')
@@ -149,12 +159,61 @@
 				});
 				
 			});
+			
+			
+			function initNewEntity(editor) {
+				var ed = $(editor);
+				var compdata;
+				
+				function addComponent() {
+					ed.find('.components').append(HB['new_component'](compdata))
+				}
+				
+				CES.listTypes(function(err, data) {
+					compdata = {componentTypes: data};
+					ed.find('.components').html('');
+					addComponent();
+				});
+				
+				ed.find('[action="add-component"]').click(function(e) {
+					e.preventDefault();
+					addComponent();
+				});
+				
+				ed.find('[action="create-entity"]').click(function(e) {
+					var components = {};
+					ed.find('.components .newcomp').each(function() {
+						var compName = $(this).find('[name="type"]').val();
+						var value = $(this).find('[name="value"]').val();
+						components[compName] = value;
+					});
+					
+					var name = ed.find('[name="name"]').val();
+					console.log('new entity', components)
+					CES.createEntity(name, components, function(err, data) {
+						console.log('created entity', data);
+					});
+					
+				});
+				
+			}
+			
+			initNewEntity('.newEntity');
+			
 		});
     </script>
   </head>
   <body>
-	<input class="newentity" type="edit" />
-	<button class="btn_newentity">Create Entity</button>
+	<div class="newEntity">
+		<input name="name" type="edit" value="&lt;name&gt;" />
+		<!-- input name="type" type="edit" value="&lt;type&gt;" /-->
+		
+		<div class="components"></div>
+		<button action="add-component">+</button>
+		<br>
+		<button action="create-entity">Create Entity</button>
+
+	</div>
 	
 	
 	<div class="entity_types"></div>
