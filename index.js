@@ -49,12 +49,17 @@ module.exports = function(config, db, modCB) {
 	var typeNames = null;
 	var typeInternal = null;
 	
+	var validActionList = ['create', 'delete', 'presave', 'postsave', 'fetch'];
+	
+	function prefillActionArrays() {
+		var o = {};
+		validActionList.map(function(k) { o[k] = []; });
+		return o;
+	}
+	
 	var actionHooks = {
-		create: [],
-		'delete': [],
-		save: [],
-		fetch: [],
-		
+		series: prefillActionArrays(),
+		parallel: prefillActionArrays(),
 	};
 	
 	function refreshTypes(cb) {
@@ -475,21 +480,39 @@ module.exports = function(config, db, modCB) {
 	
 	
 	// empty/null comp list means any
-	CES.registerSystem = function(action, compList, fn) {
-		if(-1 === ['create', 'delete', 'save', 'fetch'].indexOf(action)) {
+	CES.registerSystem = function(action, compList, _options, _fn) {
+		var fn = _fn,
+			options = _options;
+		if(typeof options == 'function') {
+			options = {}
+			fn = _options;
+		}
+		
+		var defaults = {
+			filterMode: 'all',
+			prefetch: false,
+			series: false,
+		}
+		
+		options = Object.assign({}, defaults, options);
+		
+		var syncMode = options.series ? 'series' : 'parallel';
+		
+		if(-1 === validActionList.indexOf(action)) {
 			console.log('invalid action: ' + action);
 			return false;
 		}
 		
 		
-		if(!(actionHooks[action] instanceof Array)) 
-			actionHooks[action] = [];
+		if(!(actionHooks[syncMode][action] instanceof Array)) 
+			actionHooks[syncMode][action] = [];
 		
 		var cl = null;
 		if(compList instanceof Array && compList.length) cl = compList.slice();
 		
-		actionHooks[action].push({
+		actionHooks[syncMode][action].push({
 			comps: cl,
+			mode: options.filterMode,
 			fn: fn,
 		});
 		
@@ -504,27 +527,57 @@ module.exports = function(config, db, modCB) {
 		return true;
 	}
 	
+	function hasAnyComps(entity, compList) { 
+		for(var i = 0; i < compList.length; i++) {
+			if(Object.prototype.hasOwnProperty.call(entity, compList[i])) 
+				return true;
+		}
+		
+		return false;
+	}
+	
+	function hasComps(mode, entity, compList) {
+		return {
+			any: hasAnyComps,
+			all: hasAllComps,
+		}[mode](entity, compList);
+	}
+	
 	// mutates entity
 	CES.runSystem = function(action, entity, cb) {
-		var hooks = actionHooks[action];
-		if(!hooks || !hooks.length) return cb(null); 
+		var hooksSeries = actionHooks.series[action];
+		var hooksParallel = actionHooks.parallel[action];
 		
 		var dirty = false;
 		
-		async.map(hooks, function(h, acb) {
-			if(h.comps !== null && !hasAllComps(entity, h.comps)) {
+		async.mapSeries(hooksSeries, function(h, acb) {
+			if(h.comps !== null && !hasComps(h.mode, entity, h.comps)) {
 				return acb(null);
 			}
 			
+			// TODO: pass in db transaction rather than raw db 
 			h.fn(entity, CES, db, function(err, d) {
 				dirty = dirty || d;
 				acb(err);
 			});
 			
 		}, function(err) {
-			cb(null, dirty);
+			if(err) return cb(err);
+			
+			async.map(hooksParallel, function(h, acb) {
+				if(h.comps !== null && !hasComps(h.mode, entity, h.comps)) {
+					return acb(null);
+				}
+				
+				h.fn(entity, CES, db, function(err, d) {
+					dirty = dirty || d;
+					acb(err);
+				});
+				
+			}, function(err) {
+				cb(err, dirty);
+			});
 		});
-		
 		
 	};
 	

@@ -23,7 +23,7 @@ var conn = mysql.createPool(config.db);
 var CES = require('./index')(config.CES, conn, function(){
 	console.log('database initialized');
 	
-	CES.registerSystem('create', null, function(entity, ces, db, cb) {
+	CES.registerSystem('create', [], {series: true}, function(entity, ces, db, cb) {
 		entity.created_at = new Date();
 		console.log('adding created at');
 		
