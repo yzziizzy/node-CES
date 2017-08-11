@@ -23,6 +23,26 @@ var conn = mysql.createPool(config.db);
 var CES = require('./index')(config.CES, conn, function(){
 	console.log('database initialized');
 	
+	CES.registerSystem('create', null, function(entity, ces, db, cb) {
+		entity.created_at = new Date();
+		console.log('adding created at');
+		
+		cb(null, true);
+	});
+
+	CES.registerSystem('create', ['fuzz'], function(entity, ces, db, cb) {
+		if(entity.fuzz > 3) {
+			entity.cute = 1;
+			console.log('marking fuzzy item as cute');
+		}
+		else {
+			entity.scraggly = 1;
+			console.log('marking fuzzy item as scraggly');
+		}
+		
+		cb(null, true);
+	});
+	
 	async.series([
 		//function(cb) { CES.createType('cost', 'int', cb) },
 		//function(cb) { CES.createType('name', 'string', cb) },
@@ -116,10 +136,12 @@ app.all('/deleteEntity', function(req, res) {
 	});
 });
 
-app.all('/findEntitiesWithComps', function(req, res) {
-	CES.fetchEntitiesWithComps(req.query.compNames, function(err, entities) {
-		res.send(JSON.stringify(entities));
-	});
+app.all('/findEntitiesWithAllComps', function(req, res) {
+	CES.fetchEntitiesWithAllComps(req.query.compNames, sendJSON(res));
+});
+
+app.all('/findEntitiesWithAnyComps', function(req, res) {
+	CES.fetchEntitiesWithAnyComps(req.query.compNames, sendJSON(res));
 });
 
 

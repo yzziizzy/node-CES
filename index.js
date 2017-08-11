@@ -49,6 +49,13 @@ module.exports = function(config, db, modCB) {
 	var typeNames = null;
 	var typeInternal = null;
 	
+	var actionHooks = {
+		create: [],
+		'delete': [],
+		save: [],
+		fetch: [],
+		
+	};
 	
 	function refreshTypes(cb) {
 		db.query('SELECT * from `types`;', function(err, data) {
@@ -182,11 +189,13 @@ module.exports = function(config, db, modCB) {
 			if(err) return nt(cb, err);
 			//console.log('created entity ' + eid)
 			
-			CES.setComponentList(eid, compList, function(err2) {
-				cb(err, eid);
+			compList.eid = eid;
+			CES.runSystem('create', compList, function(err) {
+				CES.setComponentList(eid, compList, function(err2) {
+					cb(err, eid);
+				});
 			});
 		});
-		
 	};
 	
 	
@@ -377,8 +386,40 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	
-	// not working
-	CES.fetchEntitiesWithComps = function(compNames, cb) {
+	CES.fetchEntitiesWithAllComps = function(compNames, cb) {
+		
+		var compIDs = [];
+		var joins = [];
+		_.map(types, function(v, k) {
+			if(-1 === compNames.indexOf(k)) return;
+			
+			compIDs.push(v);
+		});
+		
+		joins = compIDs.map(function(id, index) {
+			var alias = '`c' + index + '`';
+			return 'INNER JOIN `components` '+alias+' ON ' +
+				'`e`.`eid` = '+alias+'.`eid` AND ' +
+				alias+'.`typeID` = ' + Number(id);
+		});
+		
+		var q = '' +
+			'SELECT ' +
+			'	e.* ' +
+			'FROM `entities` e ' +
+			joins.join('\n') +
+			';';
+		
+		
+		db.query(q, [compIDs], function(err, res) {
+			if(err) return nt(cb, err);
+			//console.log(res);
+			cb(err, res);
+		});
+		
+	}
+	
+	CES.fetchEntitiesWithAnyComps = function(compNames, cb) {
 				
 		var q = '' +
 			'SELECT ' +
@@ -386,11 +427,11 @@ module.exports = function(config, db, modCB) {
 			'FROM `entities` e ' +
 			'INNER JOIN `components` c ON e.eid = c.eid ' +
 			'WHERE ' +
-			'	c.`typeID` IN ? ' +
+			'	c.`typeID` IN (?) ' +
 			';';
 		
 		var compIDs = [];
-		types.map(function(v, k) {
+		_.map(types, function(v, k) {
 			if(-1 !== compNames.indexOf(k)) compIDs.push(v);
 		});
 		
@@ -426,6 +467,62 @@ module.exports = function(config, db, modCB) {
 			}
 			
 			cb(null, list);
+		});
+		
+		
+	};
+	
+	
+	
+	// empty/null comp list means any
+	CES.registerSystem = function(action, compList, fn) {
+		if(-1 === ['create', 'delete', 'save', 'fetch'].indexOf(action)) {
+			console.log('invalid action: ' + action);
+			return false;
+		}
+		
+		
+		if(!(actionHooks[action] instanceof Array)) 
+			actionHooks[action] = [];
+		
+		var cl = null;
+		if(compList instanceof Array && compList.length) cl = compList.slice();
+		
+		actionHooks[action].push({
+			comps: cl,
+			fn: fn,
+		});
+		
+	};
+	
+	function hasAllComps(entity, compList) { 
+		for(var i = 0; i < compList.length; i++) {
+			if(!Object.prototype.hasOwnProperty.call(entity, compList[i])) 
+				return false;
+		}
+		
+		return true;
+	}
+	
+	// mutates entity
+	CES.runSystem = function(action, entity, cb) {
+		var hooks = actionHooks[action];
+		if(!hooks || !hooks.length) return cb(null); 
+		
+		var dirty = false;
+		
+		async.map(hooks, function(h, acb) {
+			if(h.comps !== null && !hasAllComps(entity, h.comps)) {
+				return acb(null);
+			}
+			
+			h.fn(entity, CES, db, function(err, d) {
+				dirty = dirty || d;
+				acb(err);
+			});
+			
+		}, function(err) {
+			cb(null, dirty);
 		});
 		
 		

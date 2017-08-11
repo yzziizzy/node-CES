@@ -45,11 +45,38 @@
 			padding: 5px;
 		}
     
+		.newEntity.header {
+			background-color: #aaaaff;
+			margin-bottom: 0px;
+		}
 		.newEntity {
 			border: 2px solid #aaaaff;
 			padding: 5px;
 			max-width: 690px;
 			margin-bottom: 20px;
+		}
+		
+		.search-entities {
+			border: 2px solid purple;
+			max-width: 700px;
+			margin-bottom: 20px;
+		}
+		.search-entities .header {
+			background-color: purple;
+			color: silver;
+			padding: 5px;
+		}
+		
+		.search-entities .component-filter {
+			padding: 5px;
+			float: left;
+			clear: both;
+		}
+		
+		.search-entities .component-filter .component-checkbox {
+			float: left;
+			display: inline-block;
+			min-width: 180px;
 		}
     
     </style>
@@ -200,10 +227,39 @@
 			
 			initNewEntity('.newEntity');
 			
+			
+			CES.listTypes(function(err, data) {
+				$('.search-entities .component-filter').html(HB['search_comp_filter'](data));
+			});
+			
+			$(document).on('click', '.search-entities [action="filter-by-components"]', function(e) {
+				var en = $(e.target);
+				var se = en.closest('.search-entities');
+				var cl = se.find('.component-filter');
+				
+				var list = [];
+				
+				cl.find('.component-checkbox input[type="checkbox"]').each(function() {
+					if($(this).is(':checked')) {
+						list.push($(this).attr('name'));
+					}
+				});
+			
+				CES.findEntitiesWithComps(list, function(err, data) {
+					$('.entity_list').html(HB['entity'](data)).data('entities', data);
+				});
+	
+				
+			});
 		});
     </script>
   </head>
   <body>
+	<div class="entity_types"></div>	
+	
+	
+	
+	<div class="newEntity header">Create Entity</div>
 	<div class="newEntity">
 		<input name="name" type="edit" value="&lt;name&gt;" />
 		<!-- input name="type" type="edit" value="&lt;type&gt;" /-->
@@ -215,8 +271,15 @@
 
 	</div>
 	
-	
-	<div class="entity_types"></div>
+	<div class="search-entities">
+		<div class="header">Component Filter</div>
+		<div class="component-filter">
+			
+		</div>
+		
+		<br>
+		<button action="filter-by-components" >Apply Filter</button>
+	</div>
 	
 	<div class="entity_list"></div>
 	
