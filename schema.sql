@@ -47,8 +47,6 @@ CREATE TABLE IF NOT EXISTS `components` (
 
 CREATE TABLE IF NOT EXISTS `entities` (
 	`eid` INT AUTO_INCREMENT PRIMARY KEY,
-	`name` TEXT,
-	`entityType` TEXT,
 	`deleted` bool not null default false
 );
 
@@ -63,3 +61,5 @@ CREATE TABLE IF NOT EXISTS `types` (
 	`is_date` bool default false,
 	unique(`name`)
 );
+
+INSERT INTO `types` (`name`, `is_string`) VALUES ('name', true);

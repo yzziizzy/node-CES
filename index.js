@@ -166,7 +166,21 @@ module.exports = function(config, db, modCB) {
 	
 	// returns the new entity id
 	CES.listEntities = function(cb) {
-		var q = 'SELECT * from `entities` WHERE deleted = false;';
+		var q = '' + 
+			'SELECT ' +
+			'	e.*, '+ 
+			'	c1.data_string as `name`, ' +
+			'	c2.data_string as `type` ' +
+			'from `entities` e ' +
+			'left join components c1 on e.eid = c1.eid ' +
+			'inner join types t1 on c1.typeID = t1.typeID ' +
+			'left join components c2 on e.eid = c2.eid ' +
+			'inner join types t2 on c2.typeID = t2.typeID ' +
+			'WHERE ' +
+			'	e.deleted = false ' +
+			'	AND t1.name = \'name\' ' +
+			'	AND t2.name = \'type\' ' +
+			';'
 		db.query(q, function(err, res) {
 			if(err) return nt(cb, err);
 			//console.log(res);
@@ -175,11 +189,11 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	// returns the new entity id
-	CES.createEntity = function(name, type, cb) {
+	CES.createEntity = function(cb) {
 		//console.log(name, type);
-		var q = 'INSERT INTO `entities` (`name`, `entityType`) VALUES (?, ?);';   
+		var q = 'INSERT INTO `entities` (`eid`) VALUES (NULL);';   
 		
-		db.query(q, [name, type], function(err, res) {
+		db.query(q, function(err, res) {
 			//console.log('entity created', err)
 			if(err) return nt(cb, err);
 			
@@ -189,8 +203,8 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	// returns the new entity id
-	CES.createEntityWithComps = function(name, compList, cb) {
-		var eid = CES.createEntity(name, 'unspecified', function(err, eid) {
+	CES.createEntityWithComps = function(compList, cb) {
+		var eid = CES.createEntity( function(err, eid) {
 			if(err) return nt(cb, err);
 			//console.log('created entity ' + eid)
 			

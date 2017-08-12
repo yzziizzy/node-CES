@@ -26,9 +26,9 @@ var CES = {};
 	};
 		
 	
-	CES.upsertEntity = function(name, ent, cb) {
+	CES.upsertEntity = function(ent, cb) {
 		
-		$.getJSON('/upsertEntity', {name: name, components: ent}, function(data, status) {
+		$.getJSON('/upsertEntity', ent, function(data, status) {
 			console.log("getjson callback for upsert entity")
 			if(status != 'success') {
 				console.log("failed to upsert entity #"+ent.eid+" with status code " + status);
@@ -39,9 +39,9 @@ var CES = {};
 		})
 	};
 		
-	CES.createEntity = function(name, ent, cb) {
+	CES.createEntity = function(ent, cb) {
 		
-		$.getJSON('/createEntity', {name: name, components: ent}, function(data, status) {
+		$.getJSON('/createEntity', ent, function(data, status) {
 			console.log("getjson callback for create entity")
 			if(status != 'success') {
 				console.log("failed to create entity #"+ent.eid+" with status code " + status);
@@ -76,14 +76,17 @@ var CES = {};
 		})
 	};
 	
-	
+	var types = null;
 	CES.listTypes = function(cb) {
+		if(types !== null) return cb(null, types);
+ 
 		$.getJSON('/types', function(data, status) {
 			if(status != 'success') {
 				console.log("failed to fetch entity types with status code " + status);
 				cb(status);
 			}
 			
+			types = data;
 			cb(null, data);
 		})
 	};

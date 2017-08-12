@@ -10,7 +10,7 @@
 <tr class="entity-header" eid={{eid}}>
 	<td>{{eid}}</td>
 	<td>{{name}}</td>
-	<td>{{entityType}}</td>
+	<td>{{type}}</td>
 	<td>
 		<button action="delete">Delete</button>
 	</td>
@@ -32,6 +32,8 @@
 				{{/equals}}
 			{{/each}}
 		</div>
+		<button action="add-component">+</button>
+		<br/>
 		<button action="save" style="display:none;">Save</button><span class="save_status"></span>
 	</td>
 </tr>

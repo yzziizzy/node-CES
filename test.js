@@ -113,7 +113,7 @@ app.all('/entities', function(req, res) {
 
 app.all('/createEntity', function(req, res) {
 	console.log('creating entity', req.query)
-	CES.createEntityWithComps(req.query.name, req.query.components, function(err, entities) {
+	CES.createEntityWithComps(req.query, function(err, entities) {
 		res.send(JSON.stringify(entities));
 	});
 });

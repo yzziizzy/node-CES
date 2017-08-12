@@ -97,13 +97,6 @@
 			}
 			
 			
-			$('.btn_newentity').click(function(e) {
-				e.preventDefault();
-				$.getJSON('/newEntity', {name: $('.newentity').val()}, function(data, status) {
-					refreshEntities();
-				});
-			})
-			
 			CES.listTypes(function(err, data) {
 				$('.entity_types').html(HB['types'](data));
 				
@@ -146,12 +139,31 @@
 				var eid = entity.attr('eid')|0;
 				console.log('eid: ', eid)
 				
+				var compdata;
+				
 				CES.fetchEntity(eid, function(err, comps) {
 					console.log('comps: ', comps);
 					var ed = $('.entity-details[eid="'+eid+'"]');
 					ed.show();
 					ed.find('.components').html(HB['components'](comps));
 					ed.find('button[action="save"]').show();
+					
+					CES.listTypes(function(err, data) {
+						compdata = {componentTypes: data};
+					});
+					
+					function addComponent() {
+						ed.find('.components').append(HB['new_component'](compdata))
+					}
+					
+					
+					ed.find('[action="add-component"]').click(function(e) {
+						e.preventDefault();
+						addComponent();
+					});
+					
+					
+					
 				});
 			});
 			
@@ -162,9 +174,18 @@
 				var eid = entity_details.attr('eid')|0;
 				
 				var new_entity = {eid: eid};
+				// existing components
 				entity_details.find('input.valedit').each(function() {
 					var name = $(this).attr('name');
 					var val = $(this).val();
+					
+					new_entity[name] = val;
+				});
+				
+				// new components. hacky but meh
+				entity_details.find('.newcomp').each(function() {
+					var name = $(this).find('select[name="type"]').val();
+					var val = $(this).find('input[name="value"]').val();
 					
 					new_entity[name] = val;
 				});
@@ -215,9 +236,8 @@
 						components[compName] = value;
 					});
 					
-					var name = ed.find('[name="name"]').val();
 					console.log('new entity', components)
-					CES.createEntity(name, components, function(err, data) {
+					CES.createEntity(components, function(err, data) {
 						console.log('created entity', data);
 					});
 					
@@ -261,9 +281,6 @@
 	
 	<div class="newEntity header">Create Entity</div>
 	<div class="newEntity">
-		<input name="name" type="edit" value="&lt;name&gt;" />
-		<!-- input name="type" type="edit" value="&lt;type&gt;" /-->
-		
 		<div class="components"></div>
 		<button action="add-component">+</button>
 		<br>
