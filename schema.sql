@@ -59,7 +59,11 @@ CREATE TABLE IF NOT EXISTS `types` (
 	`is_int` bool default false,
 	`is_string` bool default false,
 	`is_date` bool default false,
+	`externalType` VARCHAR(64) default '',
 	unique(`name`)
 );
 
 INSERT INTO `types` (`name`, `is_string`) VALUES ('name', true);
+INSERT INTO `types` (`name`, `is_date`) VALUES ('created_at', true);
+INSERT INTO `types` (`name`, `is_date`) VALUES ('updated_at', true);
+INSERT INTO `types` (`name`, `is_date`) VALUES ('deleted_at', true);

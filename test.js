@@ -144,6 +144,10 @@ app.all('/findEntitiesWithAnyComps', function(req, res) {
 	CES.fetchEntitiesWithAnyComps(req.query.compNames, sendJSON(res));
 });
 
+app.all('/findEntity', function(req, res) {
+	CES.findEntity(req.query.fields, sendJSON(res));
+});
+
 
 app.use('/', serveStatic('./static'));
 

@@ -48,6 +48,7 @@ module.exports = function(config, db, modCB) {
 	var types = null;
 	var typeNames = null;
 	var typeInternal = null;
+	var typeExternal = null;
 	
 	var validActionList = ['create', 'delete', 'presave', 'postsave', 'fetch'];
 	
@@ -69,10 +70,12 @@ module.exports = function(config, db, modCB) {
 			types = Object.create(null); // ids keyed by name
 			typeNames = Object.create(null); // names keyed by id
 			typeInternal = Object.create(null); // data types keyed by id
+			typeExternal = Object.create(null); // external coerced types keyed by id
 			
 			for(var i = 0; i < data.length; i++) {
 				types[data[i].name] = parseInt(data[i].typeID);
 				typeNames[parseInt(data[i].typeID)] = data[i].name;
+				typeExternal[parseInt(data[i].typeID)] = data[i].externalType;
 				
 				var dtype;
 				if(data[i].is_double) dtype = 'double';
@@ -86,6 +89,10 @@ module.exports = function(config, db, modCB) {
 			cb(null);
 		});
 	};
+	
+	function colForCompID(id) {
+		return typeToDataCol(typeInternal[id]);
+	}
 	
 	function typeToBoolCol(str) {
 		return {
@@ -115,6 +122,7 @@ module.exports = function(config, db, modCB) {
 				name: name,
 				id: id,
 				dataType: typeInternal[id],
+				externalType: typeExternal[id],
 			};
 		});
 		
@@ -491,6 +499,65 @@ module.exports = function(config, db, modCB) {
 		
 	};
 	
+	CES.findEntity = function(searchFields, cb) {
+		
+		var compIDs = [];
+		var joins = [];
+		var wheres = [];
+		var args = [];
+		var index = 0;
+		_.map(searchFields, function(v, k) {
+			var id = types[k];
+			if(!id) return;
+			
+			var alias = '`c' + index + '`';
+			joins.push('INNER JOIN `components` '+alias+' ON ' +
+				'`e`.`eid` = '+alias+'.`eid` AND ' +
+				alias+'.`typeID` = ' + Number(id));
+			
+			var col = typeToDataCol(typeInternal[id]);
+			wheres.push(' '+alias+'.'+col+ ' = ? ');
+			
+			args.push(v);
+			
+			index++;
+		});
+		
+		
+		
+		var sub = '' +
+			'SELECT ' +
+			'	e.eid ' +
+			'FROM `entities` e ' +
+			' ' + joins.join('\n') + ' ' + 
+			'WHERE ' +
+			'	e.`deleted` = false ' +
+			'	AND ' + wheres.join(' AND ') +
+			'';
+		
+		var q = '' +
+			'SELECT ' +
+			'	c.* ' +
+			'FROM components c '+
+			'WHERE c.eid IN ('+sub+');'
+		
+		db.query(q, args, function(err, res) {
+			if(err) return nt(cb, err);
+			
+			var entities = {};
+			
+			for(var i = 0; i < res.length; i++) {
+				var eid = res[i].eid | 0;
+				
+				var val = res[i][colForCompID(res[i].typeID)];
+				if(typeof entities[eid] != 'object') entities[eid] = {eid: eid};
+				entities[eid][typeNames[res[i].typeID]] = val;
+			}
+			
+			cb(null, entities);
+		});
+		
+	};
 	
 	
 	// empty/null comp list means any

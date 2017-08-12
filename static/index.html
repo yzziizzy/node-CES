@@ -56,16 +56,35 @@
 			margin-bottom: 20px;
 		}
 		
+		.search-tabs {
+			margin-bottom: 5px;
+			cursor: pointer;
+		}
+		
+		.search-tabs [tab="filter"] {
+			background-color: purple;
+			color: silver;
+			padding: 5px;
+		}
+		.search-tabs [tab="search"] {
+			background-color: #115511;
+			color: silver;
+			padding: 5px;
+		}
+
+		.search-values {
+			border: 2px solid #115511;
+			max-width: 700px;
+			margin-bottom: 20px;
+		}
+
+
 		.search-entities {
 			border: 2px solid purple;
 			max-width: 700px;
 			margin-bottom: 20px;
 		}
-		.search-entities .header {
-			background-color: purple;
-			color: silver;
-			padding: 5px;
-		}
+
 		
 		.search-entities .component-filter {
 			padding: 5px;
@@ -87,7 +106,7 @@
 	<script type="text/javascript" src="./templates.js"></script>
 	<script type="text/javascript" src="./ces.js"></script>
 	<script type="text/javascript">
-		
+		var compData;
 		$(function() {
 			function refreshEntities() {
 				$.getJSON('/entities', function(data, status) {
@@ -96,10 +115,9 @@
 				
 			}
 			
-			
 			CES.listTypes(function(err, data) {
 				$('.entity_types').html(HB['types'](data));
-				
+				compData = {componentTypes: data};
 			});
 			CES.allEntities(function(err, data) {
 				$('.entity_list').html(HB['entity'](data)).data('entities', data);
@@ -271,6 +289,38 @@
 	
 				
 			});
+			
+			
+			$(document).on('click', '[action="search-values"]', function(e) {
+				var t = $(this);
+				var sv = t.closest('.search-values');
+				
+				var components = {};
+				sv.find('.components .newcomp').each(function() {
+					var compName = $(this).find('[name="type"]').val();
+					var value = $(this).find('[name="value"]').val();
+					components[compName] = value;
+				});
+				CES.findEntity(components, function(err, data) {
+					$('.entity_list').html(HB['entity'](data)).data('entities', data);
+				});
+				
+			});
+			
+			$(document).on('click', '[action="Add-component"]', function(e) {
+				e.preventDefault();
+				var t = $(this);
+				$(HB['new_component'](compData)).insertBefore(t);
+			});
+			
+			$('.search-tabs > span[tab]').click(function(e) {
+				e.preventDefault();
+				
+				var t = $(this).attr('tab');
+				
+				$('.tab').hide();
+				$('.tab[tab="'+t+'"]').show();
+			});
 		});
     </script>
   </head>
@@ -288,15 +338,33 @@
 
 	</div>
 	
-	<div class="search-entities">
-		<div class="header">Component Filter</div>
-		<div class="component-filter">
+	
+	<div class="search-tabs">
+		<span tab="filter">Component Filter</span>
+		<span tab="search">Value Search</span>
+	</div>
+	
+	<div class="tab-container">
+		<div class="search-entities tab" tab="filter">
+			<div class="component-filter">
+				
+			</div>
 			
+			<br>
+			<button action="filter-by-components" >Apply Filter</button>
 		</div>
 		
-		<br>
-		<button action="filter-by-components" >Apply Filter</button>
+		<div class="search-values tab" tab="search" style="display:none;">
+			<div class="components">
+				<button action="Add-component">+</button>
+			</div>
+			
+			<br>
+			<button action="search-values">Search</button>
+
+		</div>
 	</div>
+
 	
 	<div class="entity_list"></div>
 	

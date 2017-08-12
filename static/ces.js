@@ -125,6 +125,18 @@ var CES = {};
 	};
 	
 	
+	CES.findEntity = function(compNames, cb) {
+		$.getJSON('/findEntity', {fields: compNames}, function(data, status) {
+			if(status != 'success') {
+				console.log("failed to find entity with status code " + status);
+				cb(status);
+			}
+			
+			cb(null, data);
+		})
+	};
+	
+	
 	
 	
 	
