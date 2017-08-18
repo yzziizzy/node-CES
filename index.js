@@ -39,16 +39,16 @@ alternately, systems could specify to run only for components that match some sq
 
 function nt(cb, err) {
 	console.log(err);
-	cb(err);
+	process.nextTick(function() { cb(err) });
 }
 
 
 module.exports = function(config, db, modCB) {
 	
-	var types = null;
-	var typeNames = null;
-	var typeInternal = null;
-	var typeExternal = null;
+	var types = {};
+	var typeNames = {};
+	var typeInternal = {};
+	var typeExternal = {};
 	
 	var validActionList = ['create', 'delete', 'presave', 'postsave', 'fetch'];
 	
@@ -130,7 +130,7 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	// returns new type id
-	CES.createType = function(name, type, cb) {
+	CES.createType = function(name, type, externalType, cb) {
 		
 		name = name.replace(/^\s+/, '').replace(/\s+$/, '');
 		if(name == '') {
@@ -149,9 +149,9 @@ module.exports = function(config, db, modCB) {
 			'date': 'is_date',
 		}[type];
 		
-		var q = 'INSERT INTO `types` (`name`, `'+tcol+'`) VALUES (?, true);';
+		var q = 'INSERT INTO `types` (`name`, `'+tcol+'`, `externalType`) VALUES (?, true, ?);';
 		
-		db.query(q, [name], function(err, res) {
+		db.query(q, [name, externalType], function(err, res) {
 			if(err) {
 				if(err.code == 'ER_DUP_ENTRY') {
 					return nt(cb, "type name already exists.");
@@ -171,6 +171,63 @@ module.exports = function(config, db, modCB) {
 		});
 	}
 	
+	// used to make sure a schema of sorts exists and is valid
+	// does not depend on data caches or application state
+	CES.ensureTypes = function(typeInfo, cb) {
+// 		format of type info
+// 		typeInfo = [
+// 			'<componentName>': {
+// 				internalType: 'int'|'double'|'string'|'date',
+// 				externalType: ''|'int'|'double'|'string'|'date'|'bool'|'json',
+// 			}
+		
+		db.query('SELECT * from `types`;', function(err, data) {
+			var cur = _.indexBy(data, 'name');
+			var missing = {};
+			var wrong = {};
+			var wonky = {};
+			
+			_.map(typeInfo, function(ti, name) {
+				if(!cur[name]) {
+					missing[name] = ti;
+					return;
+				}
+				
+				var c = cur[name];
+				var internalType;
+				if(c.is_double) internalType = 'double';
+				else if(c.is_int) internalType = 'int';
+				else if(c.is_string) internalType = 'string';
+				else if(c.is_date) internalType = 'date';
+				
+				if(internalType != ti.internalType) {
+					wrong[name] = {cur: c, wanted: ti};
+					return;
+				}
+				
+				if(c.externalType != ti.externalType) {
+					wonky[name] = {cur: c, wanted: ti};
+					return;
+				}
+			});
+			
+			// insert the missing ones
+			async.parallel(_.map(missing, function(ti, name) {
+				return function(acb) {
+					CES.createType(name, ti.internalType, ti.externalType || '', acb);
+				}
+			}), function(err) {
+				if(err) return nt(cb, err);
+				
+				if(Object.keys(wrong).length) err = "wrong data";
+				cb(err, wrong, wonky);
+			});
+			
+			
+		});
+		
+		
+	}
 	
 	// returns the new entity id
 	CES.listEntities = function(cb) {
@@ -447,16 +504,23 @@ module.exports = function(config, db, modCB) {
 	}
 	
 	CES.fetchEntitiesWithAnyComps = function(compNames, cb) {
-				
-		var q = '' +
+			
+
+		var sub = '' +
 			'SELECT ' +
-			'	e.* ' +
+			'	e.eid ' +
 			'FROM `entities` e ' +
 			'INNER JOIN `components` c ON e.eid = c.eid ' +
 			'WHERE ' +
 			'	c.`typeID` IN (?) ' +
-			';';
+			'';
 		
+		var q = '' +
+			'SELECT ' +
+			'	c.* ' +
+			'FROM components c '+
+			'WHERE c.eid IN ('+sub+');'
+			
 		var compIDs = [];
 		_.map(types, function(v, k) {
 			if(-1 !== compNames.indexOf(k)) compIDs.push(v);
@@ -465,7 +529,7 @@ module.exports = function(config, db, modCB) {
 		db.query(q, [compIDs], function(err, res) {
 			if(err) return nt(cb, err);
 			//console.log(res);
-			cb(err, res);
+			cb(err, rowsToEntities(res));
 		});
 		
 	};
@@ -544,22 +608,24 @@ module.exports = function(config, db, modCB) {
 		db.query(q, args, function(err, res) {
 			if(err) return nt(cb, err);
 			
-			var entities = {};
-			
-			for(var i = 0; i < res.length; i++) {
-				var eid = res[i].eid | 0;
-				
-				var val = res[i][colForCompID(res[i].typeID)];
-				if(typeof entities[eid] != 'object') entities[eid] = {eid: eid};
-				entities[eid][typeNames[res[i].typeID]] = val;
-			}
-			
-			cb(null, entities);
+			cb(null, rowsToEntities(res));
 		});
 		
 	};
 	
-	
+	function rowsToEntities(res) {
+		var entities = {};
+		
+		for(var i = 0; i < res.length; i++) {
+			var eid = res[i].eid | 0;
+			
+			var val = res[i][colForCompID(res[i].typeID)];
+			if(typeof entities[eid] != 'object') entities[eid] = {eid: eid};
+			entities[eid][typeNames[res[i].typeID]] = val;
+		}
+		
+		return entities;
+	}
 	// empty/null comp list means any
 	CES.registerSystem = function(action, compList, _options, _fn) {
 		var fn = _fn,
@@ -661,6 +727,88 @@ module.exports = function(config, db, modCB) {
 		});
 		
 	};
+	
+	
+	// user auth info is stroed independently so it isn't accidentally leaked
+	// don't store passwords or sesitive credentials in normal components
+	CES.createUser = function(status, cb) {
+		
+		var q = 'INSERT INTO `users` (`status`, `joinedAt`, `lastLoginAt`) VALUES (?, NOW(), NULL);';
+		
+		db.query(q, [status], function(err, res) {
+			cb(err, res ? parseInt(res.insertId) : null);
+		});
+	};
+
+	CES.getUser = function(uid, cb) {
+		var q = 'SELECT * FROM `users` WHERE `uid` = ?;';
+		db.query(q, [uid], cb);
+	};
+	
+	CES.setUserStatus = function(uid, status, cb) {
+		var q = 'UPDATE `users` SET `status` = ? WHERE uid = ?;'
+		db.query(q, [status, uid], cb);
+	};
+	
+	CES.updateUserLogin = function(uid, cb) {
+		var q = 'UPDATE `users` SET `lastLoginAt` = NOW() WHERE uid = ?;'
+		db.query(q, [uid], cb);
+	};
+
+	CES.addUserClaim = function(claim, cb) {
+		var q = 'INSERT INTO `user_claims` ( '+
+			'	`uid`, '+
+			'	`type`, '+
+			'	`status`, '+
+			'	`providerID`, '+ 
+			'	`authData`, ' +
+			'	`activatedAt`, ' +
+			'	`lastLoginAt` ' +
+			') VALUES (?,?,?,?,?, NOW(), NULL);';
+			
+		db.query(q, [
+			claim.uid,
+			claim.type,
+			claim.status,
+			claim.providerID,
+			claim.authData,
+		], cb);
+	};
+	
+	CES.updateUserClaimLogin = function(uid, claimType, cb) {
+		var q = 'UPDATE `user_claims` SET `lastLoginAt` = NOW() WHERE `uid` = ? AND `type` = ?;'
+		db.query(q, [uid, claimType], cb);
+	};
+
+	CES.updateUserClaimStatus = function(uid, claimType, status, cb) {
+		var q = 'UPDATE `user_claims` SET `status` = ? WHERE `uid` = ? AND `type` = ?;'
+		db.query(q, [status, uid, claimType], cb);
+	};
+	
+	CES.updateUserClaimData = function(uid, claimType, authData, cb) {
+		var q = 'UPDATE `user_claims` SET `authData` = ? WHERE `uid` = ? AND `type` = ?;'
+		db.query(q, [authData, uid, claimType], cb);
+	};
+	
+	CES.getUserClaims = function(uid, cb) {
+		var q = 'SELECT * FROM `user_claims` WHERE `uid` = ?;'
+		db.query(q, [uid], cb);
+	};
+
+	CES.getUserClaimByProvider = function(providerID, claimType, cb) {
+		var q = 'SELECT * FROM `user_claims` WHERE `providerID` = ? AND `type` = ?;'
+		db.query(q, [providerID, claimType], function(err, row) {
+			if(err) return cb(err);
+			if(!row.length) return cb(new Error("claim '"+claimType+"' not found for providerID '"+providerID+"'"));
+			cb(null, row[0]);
+		});
+	};
+	
+	
+	
+	
+	
+	
 	
 	
 // 	CES.runSystem = function(comp, sysFn) {

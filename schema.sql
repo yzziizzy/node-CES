@@ -67,3 +67,24 @@ INSERT INTO `types` (`name`, `is_string`) VALUES ('name', true);
 INSERT INTO `types` (`name`, `is_date`) VALUES ('created_at', true);
 INSERT INTO `types` (`name`, `is_date`) VALUES ('updated_at', true);
 INSERT INTO `types` (`name`, `is_date`) VALUES ('deleted_at', true);
+
+
+CREATE TABLE IF NOT EXISTS `users` (
+	`uid` INT AUTO_INCREMENT PRIMARY KEY,
+	`status` VARCHAR(32),
+	`joinedAt` timestamp not null,
+	`lastLoginAt` timestamp
+);
+
+CREATE TABLE IF NOT EXISTS `user_claims` (
+	`uid` INT,
+	`type` VARCHAR(32),
+	`status` VARCHAR(32),
+	`providerID` VARCHAR(1024),
+	`authData` VARCHAR(1024),
+	`activatedAt` timestamp,
+	`lastLoginAt` timestamp,
+	PRIMARY KEY (`uid`, `type`)
+);
+
+

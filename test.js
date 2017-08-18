@@ -91,7 +91,7 @@ app.all('/types', function(req, res) {
 });
 
 app.all('/addType', function(req, res) {
-	CES.createType(req.query.name, req.query.dataType, function(err, types) {
+	CES.createType(req.query.name, req.query.dataType, '', function(err, types) {
 		
 		if(err) {
 			res.status(401);
