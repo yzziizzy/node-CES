@@ -535,34 +535,6 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	
-	// not working
-	CES.findEntityBy = function(comp, value, cb) {
-		
-		var q = '' +
-		'	SELECT ' +
-		'		t.`name`, ' +
-		'		c.`data` ' +
-		'	FROM `components` c ' +
-		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID`' +
-		'	WHERE `eid` = ?;';
-	
-		db.query(q, [eid], function(err, res) {
-			if(err) return nt(cb, err);
-			
-			var list = Object.create(null);
-			list.eid = eid;
-			
-			for(var i = 0; i < res.rows.length; i++) {
-				list[res.rows[i].name] = JSON.parse(res.rows[i].data);
-				// TODO: how does this work again?
-			}
-			
-			cb(null, list);
-		});
-		
-		
-	};
-	
 	CES.findEntity = function(searchFields, cb) {
 		
 		var compIDs = [];

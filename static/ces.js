@@ -103,7 +103,7 @@ var CES = {};
 	
 	// this is the main function to use
 	CES.findEntitiesWithComps = function(compNames, cb) {
-		$.getJSON('/findEntitiesWithComps', {compNames: compNames}, function(data, status) {
+		$.getJSON('/findEntitiesWithAnyComps', {compNames: compNames}, function(data, status) {
 			if(status != 'success') {
 				console.log("failed to fetch entities with comps with status code " + status);
 				cb(status);
