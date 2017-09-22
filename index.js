@@ -457,6 +457,24 @@ module.exports = function(config, db, modCB) {
 		}), cb);
 	};
 	
+	// expects eid to be in the entity object
+	CES.updateEntity = function(ent, cb) {
+		var eid = ent.eid;
+		if(!eid) return cb(new Error('eid not found'));
+		
+		var u = _.reduce(ent, function(acc, v, k) {
+			if(k == 'eid') return acc;
+			
+			acc.push(function(acb) {
+				CES.setComponent(eid, k, v, acb);
+			});
+			
+			return acc;
+		}, []);
+		
+		async.parallel(u, cb);
+	};
+	
 	
 	CES.removeComponent = function(eid, comps, cb) {
 		
@@ -535,7 +553,18 @@ module.exports = function(config, db, modCB) {
 	};
 	
 	
-	CES.findEntity = function(searchFields, cb) {
+	CES.findEntity = function(searchFields, _opts, _cb) {
+		
+		var cb = _cb;
+		var opts = _opts;
+		
+		if(typeof(_opts) == 'function') {
+			cb = _opts;
+			opts = {};
+		}
+		
+		var limit = _opts.limit || 0;
+		var offset = _opts.offset || -1;
 		
 		var compIDs = [];
 		var joins = [];
@@ -571,6 +600,14 @@ module.exports = function(config, db, modCB) {
 			'	AND ' + wheres.join(' AND ') +
 			'';
 		
+		if(limit > 0) {
+			sub += ' LIMIT ' + parseInt(limit) + ' ';
+		
+			if(offset > 0) {
+				sub += ' OFFSET ' + parseInt(offset) + ' ';
+			}
+		}
+		
 		var q = '' +
 			'SELECT ' +
 			'	c.* ' +
@@ -579,7 +616,6 @@ module.exports = function(config, db, modCB) {
 		
 		db.query(q, args, function(err, res) {
 			if(err) return nt(cb, err);
-			
 			cb(null, rowsToEntities(res));
 		});
 		
