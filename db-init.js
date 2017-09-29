@@ -46,8 +46,14 @@ function createdb(db) {
 	
 function dropdb(db) {
 	return function(cb) {
-		console.log('dropping database ' + db);
-		conn.query('DROP DATABASE `'+db+'`;', errcb(cb))
+		console.log('dropping CES tables in database ' + db);
+		conn.query(
+			'DROP TABLE IF EXISTS `components`; ' +
+			'DROP TABLE IF EXISTS `entities`; ' +
+			'DROP TABLE IF EXISTS `types`; '
+			'DROP TABLE IF EXISTS `user_claims`; '
+			'DROP TABLE IF EXISTS `users`; '
+			, errcb(cb))
 		console.log('    done');
 	}
 }

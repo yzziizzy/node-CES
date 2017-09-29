@@ -34,7 +34,7 @@ alternately, systems could specify to run only for components that match some sq
 
 
 // TODO TODO TODO
-
+// run a create system retroactively to fill in empty components
 // getEntityWithComponentValue(compType, value, cb);
 
 function nt(cb, err) {
@@ -403,7 +403,7 @@ module.exports = function(config, db, modCB) {
 		'		t.`is_string` ' +
 		'	FROM `components` c ' +
 		'	LEFT JOIN `types` t ON c.`typeID` = t.`typeID` ' +
-		'	WHERE c.`eid` IN ?;';
+		'	WHERE c.`eid` IN ? AND NOT e.`deleted`;';
 	
 		db.query(q, [eids], function(err, res) {
 			if(err) return nt(cb, err);
@@ -510,6 +510,7 @@ module.exports = function(config, db, modCB) {
 			'	e.* ' +
 			'FROM `entities` e ' +
 			joins.join('\n') +
+			'WHERE NOT e.`deleted`' +
 			';';
 		
 		
@@ -531,6 +532,7 @@ module.exports = function(config, db, modCB) {
 			'INNER JOIN `components` c ON e.eid = c.eid ' +
 			'WHERE ' +
 			'	c.`typeID` IN (?) ' +
+			'	AND NOT e.`deleted` ' +
 			'';
 		
 		var q = '' +
